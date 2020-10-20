@@ -11,10 +11,7 @@ from gooey import Gooey
 from gooey import GooeyParser
 from argparse import ArgumentParser
 from collections import Counter
-#from statsmodels.stats.multicomp import pairwise_tukeyhsd
-#here is a link I think will be useful:
-#https://stackoverflow.com/questions/53836775/use-pairwise-tukeyhsd-compare-for-all-or-multiple-groupsmore-than-2
-#https://www.statsmodels.org/stable/generated/statsmodels.sandbox.stats.multicomp.TukeyHSDResults.html#statsmodels.sandbox.stats.multicomp.TukeyHSDResults
+from statsmodels.stats.multicomp import pairwise_tukeyhsd
 
 def boxplot_hero(tubdata, yaxis= 'Tubule Count', fig_title= 'Effect of STARD9 Knockdown on Lysosomal Membrane Tubulation'):
     '''
@@ -70,7 +67,20 @@ def boxplot_hero(tubdata, yaxis= 'Tubule Count', fig_title= 'Effect of STARD9 Kn
     for c in columns:
         li.append(tubdata[c].tolist())
     f,p = stats.f_oneway(*[li[l] for l in range(len(li))])
-    print(f,p)
+    #Now we need to check if p is less than or equal to 0.05 -- if so -- run a TUKEY TukeyHSDResults
+    if(p <= 0.05):
+        #We need to build a new dataframe
+        df_t= pd.DataFrame(columns=['Cell_Type','Tubulation'])
+        columns = list(tubdata)
+        for c in range(len(columns)):
+            for j in range(tubdata.shape[0]):
+                new_row={'Cell_Type':str(columns[c]), 'Tubulation':int(tubdata.iloc[j,c])}
+                df_t=df_t.append(new_row, ignore_index=True)
+        #print(df_t)
+        res = pairwise_tukeyhsd(pd.to_numeric(df_t['Tubulation']),df_t['Cell_Type'], alpha=0.05)
+        #now save the results as a dataframe:
+        df_res = pd.DataFrame(data=res._results_table.data[1:], columns=res._results_table.data[0])
+        print(df_res)
     plt.show()
 #So this turns the command line arguments into a beautiful GUI
 #Here I built out a File Menu with an About Menu
