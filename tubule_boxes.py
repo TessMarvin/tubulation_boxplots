@@ -12,6 +12,9 @@ from gooey import GooeyParser
 from argparse import ArgumentParser
 from collections import Counter
 #from statsmodels.stats.multicomp import pairwise_tukeyhsd
+#here is a link I think will be useful:
+#https://stackoverflow.com/questions/53836775/use-pairwise-tukeyhsd-compare-for-all-or-multiple-groupsmore-than-2
+#https://www.statsmodels.org/stable/generated/statsmodels.sandbox.stats.multicomp.TukeyHSDResults.html#statsmodels.sandbox.stats.multicomp.TukeyHSDResults
 
 def boxplot_hero(tubdata, yaxis= 'Tubule Count', fig_title= 'Effect of STARD9 Knockdown on Lysosomal Membrane Tubulation'):
     '''
@@ -106,7 +109,7 @@ def main():
     if(len(raw_data) == 0):
         print("Please ensure that you select files to analyze")
         return(None)
-    #if the user would like to provide y-axis and figure title, use it, otherwise use the default 
+    #if the user would like to provide y-axis and figure title, use it, otherwise use the default
     else:
         tubdata = pd.read_csv(raw_data, sep = ',')
         if(yaxis is not None):
