@@ -81,7 +81,40 @@ def boxplot_hero(tubdata, yaxis= 'Tubule Count', fig_title= 'Effect of STARD9 Kn
         #now save the results as a dataframe:
         df_res = pd.DataFrame(data=res._results_table.data[1:], columns=res._results_table.data[0])
         print(df_res)
+        #So now we want to put these statistical annotations on the graph
+        for c in range(len(columns)):
+            rand = 0
+            num=[3,7]
+            for j in range(c+1,len(columns)):
+                p_val = (df_res.loc[((df_res['group1']==columns[c]) | (df_res['group1']==columns[j])) \
+                & ((df_res['group2']== columns[j]) | (df_res['group2']== columns[c])), ['p-adj']])
+                #So here we are saying the bar should be above which boxes
+                x1, x2 = c+1, j+1
+                max1, max2 = max(tubdata[columns[c]].tolist()), max(tubdata[columns[j]].tolist())
+                abs_max=max(max1,max2)+num[rand]
+                rand=rand+1
+                #y is the y coordinate of the bar annotation (20 units above the highest data point in the subplot)
+                #h is how far down to draw the tips of the bar downward towards the data (it looks like a line with a small taper down on each side)
+                y, h, col = abs_max, .5, 'k'
+                #This part draws the bar annotation above the boxplots
+                bp.plot([x1, x1, x2, x2], [y, y+h, y+h, y], lw=1.5, c=col)
+                final_p = p_val.iloc[0].to_list()
+                if(final_p[0] > 0.05):
+                    bp.text((x1+x2)*.5, y+h, "ns", ha='center', va='bottom', color=col)
+                #if t test is significant indicate with * and indicate the p-value is less than 0.05
+                elif(final_p[0]<=0.05 and final_p[0] > 0.01):
+                    if(final_p[0]==0.05):
+                        bp.text((x1+x2)*.5, y+h, "* (p = 0.05)", ha='center', va='bottom', color=col)
+                    else:
+                        bp.text((x1+x2)*.5, y+h, "* (p < 0.05)", ha='center', va='bottom', color=col)
+                #if t test is very significant indicate with ** and indicate the p-value is less than 0.01
+                elif(final_p[0]<=0.01):
+                    if(final_p[0]==0.01):
+                        bp.text((x1+x2)*.5, y+h, "** (p = 0.01)", ha='center', va='bottom', color=col)
+                    else:
+                        bp.text((x1+x2)*.5, y+h, "** (p < 0.01)", ha='center', va='bottom', color=col)
     plt.show()
+
 #So this turns the command line arguments into a beautiful GUI
 #Here I built out a File Menu with an About Menu
 @Gooey(
