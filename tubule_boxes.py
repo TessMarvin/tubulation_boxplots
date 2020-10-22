@@ -60,72 +60,108 @@ def boxplot_hero(tubdata, yaxis= 'Tubule Count', fig_title= 'Effect of STARD9 Kn
     bp.set(ylabel= yaxis)
     #Edit Needed: make this a command line arg
     bp.set(title= fig_title)
-    #Here we want to do an ANOVA because there are more than two groups
-    #A list to hold the list of data points for each cell type
-    li = []
-    #Fill up the empty list so it looks like this [[data for cell type],[data for next cell type], [data for last]]
-    for c in columns:
-        li.append(tubdata[c].tolist())
-    f,p = stats.f_oneway(*[li[l] for l in range(len(li))])
-    #Now we need to check if p is less than or equal to 0.05 -- if so -- run a TUKEY TukeyHSDResults
-    if(p <= 0.05):
-        #We need to build a new dataframe
-        df_t= pd.DataFrame(columns=['Cell_Type','Tubulation'])
-        columns = list(tubdata)
-        for c in range(len(columns)):
-            for j in range(tubdata.shape[0]):
-                new_row={'Cell_Type':str(columns[c]), 'Tubulation':int(tubdata.iloc[j,c])}
-                df_t=df_t.append(new_row, ignore_index=True)
-        #print(df_t)
-        res = pairwise_tukeyhsd(pd.to_numeric(df_t['Tubulation']),df_t['Cell_Type'], alpha=0.05)
-        #now save the results as a dataframe:
-        df_res = pd.DataFrame(data=res._results_table.data[1:], columns=res._results_table.data[0])
-        print(df_res)
-        #So now we want to put these statistical annotations on the graph
-        for c in range(len(columns)):
-            rand = 0
-            num=[3,7]
-            for j in range(c+1,len(columns)):
-                p_val = (df_res.loc[((df_res['group1']==columns[c]) | (df_res['group1']==columns[j])) \
-                & ((df_res['group2']== columns[j]) | (df_res['group2']== columns[c])), ['p-adj']])
-                #So here we are saying the bar should be above which boxes
-                x1, x2 = c+1, j+1
-                max1, max2 = max(tubdata[columns[c]].tolist()), max(tubdata[columns[j]].tolist())
-                abs_max=max(max1,max2)+num[rand]
-                rand=rand+1
-                #y is the y coordinate of the bar annotation (20 units above the highest data point in the subplot)
-                #h is how far down to draw the tips of the bar downward towards the data (it looks like a line with a small taper down on each side)
-                y, h, col = abs_max, .5, 'k'
-                #This part draws the bar annotation above the boxplots
-                bp.plot([x1, x1, x2, x2], [y, y+h, y+h, y], lw=1.5, c=col)
-                final_p = p_val.iloc[0].to_list()
-                if(final_p[0] > 0.05):
-                    bp.text((x1+x2)*.5, y+h, "ns", ha='center', va='bottom', color=col)
-                #if t test is significant indicate with * and indicate the p-value is less than 0.05
-                elif(final_p[0]<=0.05 and final_p[0] > 0.01):
-                    if(final_p[0]==0.05):
-                        bp.text((x1+x2)*.5, y+h, "* (p = 0.05)", ha='center', va='bottom', color=col)
-                    else:
-                        bp.text((x1+x2)*.5, y+h, "* (p < 0.05)", ha='center', va='bottom', color=col)
-                #if t test is very significant indicate with ** and indicate the p-value is less than 0.01
-                elif(final_p[0]<=0.01):
-                    if(final_p[0]==0.01):
-                        bp.text((x1+x2)*.5, y+h, "** (p = 0.01)", ha='center', va='bottom', color=col)
-                    else:
-                        bp.text((x1+x2)*.5, y+h, "** (p < 0.01)", ha='center', va='bottom', color=col)
+    if(tubdata.shape[1]==2):
+        #Here we want to do an t-test because there are only two groups
+        #A list to hold the list of data points for each cell type
+        li = []
+        #Fill up the empty list so it looks like this [[data for cell type],[data for next cell type], [data for last]]
+        for c in columns:
+            li.append(tubdata[c].tolist())
+        t,p_t = stats.ttest_ind(*[li[l] for l in range(len(li))])
+        #Here we indicate the location within the plot in which the bar should be placed
+        #So here we are saying the bar should be above the 1st and 2nd box (the only boxes in the plot)
+        #print(p_t)
+        x1, x2 = 1, 2
+        max1, max2 = max(li[0]), max(li[1])
+        abs_max=max(max1,max2)
+        abs_max=abs_max + (0.10*abs_max)
+        y, h, col = abs_max, 0.5, 'k'
+        #This part draws the bar annotation above the boxplots
+        bp.plot([x1, x1, x2, x2], [y, y+h, y+h, y], lw=1.5, c=col)
+        #if t test yields non-significant (p>0.05) indicate with ns
+        if(p_t > 0.05):
+            bp.text((x1+x2)*.5, y+h, "ns", ha='center', va='bottom', color=col)
+        #if tukey hsd test is significant indicate with * and indicate the p-value is less than 0.05
+        elif(p_t<=0.05 and p_t > 0.01):
+            if(p_t==0.05):
+                bp.text((x1+x2)*.5, y+h, "* (p = 0.05)", ha='center', va='bottom', color=col)
+            else:
+                bp.text((x1+x2)*.5, y+h, "* (p < 0.05)", ha='center', va='bottom', color=col)
+        #if tukey hsd test is very significant indicate with ** and indicate the p-value is less than 0.01
+        elif(p_t<=0.01):
+            if(p_t==0.01):
+                bp.text((x1+x2)*.5, y+h, "** (p = 0.01)", ha='center', va='bottom', color=col)
+            else:
+                bp.text((x1+x2)*.5, y+h, "** (p < 0.01)", ha='center', va='bottom', color=col)
+    if(tubdata.shape[1]>2):
+        #Here we want to do an ANOVA because there are more than two groups
+        #A list to hold the list of data points for each cell type
+        li = []
+        #Fill up the empty list so it looks like this [[data for cell type],[data for next cell type], [data for last]]
+        for c in columns:
+            li.append(tubdata[c].tolist())
+        f,p = stats.f_oneway(*[li[l] for l in range(len(li))])
+        #Now we need to check if p is less than or equal to 0.05 -- if so -- run a TUKEY TukeyHSDResults
+        if(p <= 0.05):
+            #We need to build a new dataframe
+            df_t= pd.DataFrame(columns=['Cell_Type','Tubulation'])
+            columns = list(tubdata)
+            for c in range(len(columns)):
+                for j in range(tubdata.shape[0]):
+                    new_row={'Cell_Type':str(columns[c]), 'Tubulation':int(tubdata.iloc[j,c])}
+                    df_t=df_t.append(new_row, ignore_index=True)
+            #print(df_t)
+            res = pairwise_tukeyhsd(pd.to_numeric(df_t['Tubulation']),df_t['Cell_Type'], alpha=0.05)
+            #now save the results as a dataframe:
+            df_res = pd.DataFrame(data=res._results_table.data[1:], columns=res._results_table.data[0])
+            print(df_res)
+            #So now we want to put these statistical annotations on the graph
+            num = []
+            for i in range(3,50,4):
+                num.append(i)
+            for c in range(len(columns)):
+                rand = 0
+                for j in range(c+1,len(columns)):
+                    p_val = (df_res.loc[((df_res['group1']==columns[c]) | (df_res['group1']==columns[j])) \
+                    & ((df_res['group2']== columns[j]) | (df_res['group2']== columns[c])), ['p-adj']])
+                    #So here we are saying the bar should be above which boxes
+                    x1, x2 = c+1, j+1
+                    max1, max2 = max(tubdata[columns[c]].tolist()), max(tubdata[columns[j]].tolist())
+                    abs_max=max(max1,max2)+num[rand]
+                    rand=rand+1
+                    #y is the y coordinate of the bar annotation (20 units above the highest data point in the subplot)
+                    #h is how far down to draw the tips of the bar downward towards the data (it looks like a line with a small taper down on each side)
+                    y, h, col = abs_max, .5, 'k'
+                    #This part draws the bar annotation above the boxplots
+                    bp.plot([x1, x1, x2, x2], [y, y+h, y+h, y], lw=1.5, c=col)
+                    final_p = p_val.iloc[0].to_list()
+                    if(final_p[0] > 0.05):
+                        bp.text((x1+x2)*.5, y+h, "ns", ha='center', va='bottom', color=col)
+                    #if tukey hsd test is significant indicate with * and indicate the p-value is less than 0.05
+                    elif(final_p[0]<=0.05 and final_p[0] > 0.01):
+                        if(final_p[0]==0.05):
+                            bp.text((x1+x2)*.5, y+h, "* (p = 0.05)", ha='center', va='bottom', color=col)
+                        else:
+                            bp.text((x1+x2)*.5, y+h, "* (p < 0.05)", ha='center', va='bottom', color=col)
+                    #if tukey hsd test is very significant indicate with ** and indicate the p-value is less than 0.01
+                    elif(final_p[0]<=0.01):
+                        if(final_p[0]==0.01):
+                            bp.text((x1+x2)*.5, y+h, "** (p = 0.01)", ha='center', va='bottom', color=col)
+                        else:
+                            bp.text((x1+x2)*.5, y+h, "** (p < 0.01)", ha='center', va='bottom', color=col)
     plt.show()
 
 #So this turns the command line arguments into a beautiful GUI
 #Here I built out a File Menu with an About Menu
 @Gooey(
-    program_name='Tubulation Analysis',
+    program_name='Box Plot Analysis',
     menu=[{
     'name':'File',
     'items': [{
             'type': 'AboutDialog',
             'menuTitle': 'About',
-            'name': 'Tubulation Analysis and Figure Generation',
-            'description': 'A tool to create visuals of data concerning lysosomal tubulation',
+            'name': 'Box-and-Whisker Analysis and Figure Generation',
+            'description': 'A tool to create visuals of data concerning',
             'version': '1.0',
             'copyright': '2020',
             'website': 'https://github.com/TessMarvin',
@@ -137,7 +173,7 @@ def boxplot_hero(tubdata, yaxis= 'Tubule Count', fig_title= 'Effect of STARD9 Kn
 def main():
     #So first we will handle the arguments that are "required" -- the files and the gene of interest
     #Here we give our GUI a title
-    parser = GooeyParser(description="Dashboard for Lysosomal Tubulation Analysis")
+    parser = GooeyParser(description="Dashboard for Box-and-Whisker Analysis")
     #Here we allow for the selection of the data files to analyze
     #Because there is no - infront of file_chooser it is required!
     parser.add_argument("file_chooser", help = 'Choose the csv file to analyze.', widget='FileChooser')
